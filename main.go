@@ -1,7 +1,11 @@
+/*
+Copyright © 2024 NAME HERE <EMAIL ADDRESS>
+
+*/
 package main
 
-import "fmt"
+import "github.com/Justin-Arnold/epoch-cli/cmd"
 
 func main() {
-    fmt.Println("Epoch CLI - Working")
+	cmd.Execute()
 }

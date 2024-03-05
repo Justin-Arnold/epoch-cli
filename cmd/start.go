@@ -7,11 +7,14 @@ import (
 	"fmt"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
-	//	"os"
-	//	"os/signal"
+	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
+	//"github.com/gopxl/beep"
+	"github.com/gopxl/beep/mp3"
+	"github.com/gopxl/beep/speaker"
 )
 
 // ... other code
@@ -94,6 +97,19 @@ func startTimer(mode string, duration time.Duration) {
 }
 
 func playFinishedSound(mode string) {
-	// Implement playing a sound (you'll need a suitable library)
-	fmt.Println("Sound not implemented")
+	f, err := os.Open("sounds/yeahboi.mp3")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	streamer, format, err := mp3.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer streamer.Close()
+
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	speaker.Play(streamer)
+	select {}
 }

@@ -12,7 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"time"
-	//"github.com/gopxl/beep"
+	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
 )
@@ -93,7 +93,8 @@ func startTimer(mode string, duration time.Duration) {
 		time.Sleep(time.Second)
 	}
 
-	playFinishedSound(mode)
+	playFinishedSound(mode);
+	endSession();
 }
 
 func playFinishedSound(mode string) {
@@ -110,6 +111,28 @@ func playFinishedSound(mode string) {
 	defer streamer.Close()
 
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	speaker.Play(streamer)
-	select {}
+	done := make(chan struct{})
+    	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+        	close(done)
+    	})))
+
+   	<-done
+	
+}
+
+func endSession() {
+	fmt.Print("Start a new [s]ession or e[x]it?\n")
+	var choice string
+	fmt.Scanln(&choice)
+	
+	switch choice {
+	case "s":
+		startTimer("session", 2)
+	case "x":
+		fmt.Println("Exiting the program...")
+		os.Exit(0)
+	default:
+		fmt.Println("Invalid choice, Exiting the program...")
+		os.Exit(0)
+	}
 }

@@ -15,9 +15,13 @@ import (
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
+	_ "embed"
+	"bytes"
+	"io/ioutil"
 )
 
-// ... other code
+//go:embed sounds/yeahboi.mp3
+var yeahboi []byte
 
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -98,26 +102,19 @@ func startTimer(mode string, duration time.Duration) {
 }
 
 func playFinishedSound(mode string) {
-	f, err := os.Open("sounds/yeahboi.mp3")
-	if err != nil {
-		log.Fatal(err)
-	}
+    reader := bytes.NewReader(yeahboi)
+    streamer, format, err := mp3.Decode(ioutil.NopCloser(reader))
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer streamer.Close()
 
-	streamer, format, err := mp3.Decode(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer streamer.Close()
-
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	done := make(chan struct{})
-    	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
-        	close(done)
-    	})))
-
-   	<-done
-	
+    speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+    done := make(chan struct{})
+    speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+        close(done)
+    })))
+    <-done
 }
 
 func endSession() {

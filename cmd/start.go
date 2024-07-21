@@ -27,18 +27,19 @@ var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a session or break",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("Error: Please specify 'session' or 'break'")
+
+		if len(args) != 1  {
+			fmt.Println("Error: missing duration argument")
 			return
 		}
 
-		duration, err := parseDuration(args[1:])
+		duration, err := parseDuration(args[0:])
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 
-		startTimer(args[0], duration)
+		startTimer("session", duration)
 	},
 }
 

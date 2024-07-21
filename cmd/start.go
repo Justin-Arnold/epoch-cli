@@ -3,21 +3,22 @@ package cmd
 // ... other imports
 
 import (
+	"bytes"
+	_ "embed"
 	"errors"
 	"fmt"
-	"github.com/schollz/progressbar/v3"
-	"github.com/spf13/cobra"
+	"io/ioutil"
 	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"time"
+
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
-	_ "embed"
-	"bytes"
-	"io/ioutil"
+	"github.com/schollz/progressbar/v3"
+	"github.com/spf13/cobra"
 )
 
 //go:embed sounds/yeahboi.mp3
@@ -28,7 +29,7 @@ var startCmd = &cobra.Command{
 	Short: "Start a session or break",
 	Run: func(cmd *cobra.Command, args []string) {
 
-		if len(args) != 1  {
+		if len(args) != 1 {
 			fmt.Println("Error: missing duration argument")
 			return
 		}
@@ -98,34 +99,50 @@ func startTimer(mode string, duration time.Duration) {
 		time.Sleep(time.Second)
 	}
 
-	playFinishedSound(mode);
-	endSession();
+	playFinishedSound(mode)
+	endSession(duration)
 }
 
 func playFinishedSound(mode string) {
-    reader := bytes.NewReader(yeahboi)
-    streamer, format, err := mp3.Decode(ioutil.NopCloser(reader))
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer streamer.Close()
+	reader := bytes.NewReader(yeahboi)
+	streamer, format, err := mp3.Decode(ioutil.NopCloser(reader))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
 
-    speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-    done := make(chan struct{})
-    speaker.Play(beep.Seq(streamer, beep.Callback(func() {
-        close(done)
-    })))
-    <-done
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	done := make(chan struct{})
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+		close(done)
+	})))
+	<-done
 }
 
-func endSession() {
-	fmt.Print("Start a new [s]ession or e[x]it?\n")
+type OriginalSessionType string
+
+const (
+	DefaultTypeSession OriginalSessionType = "default"
+	CustomTypeSession  OriginalSessionType = "custom"
+)
+
+func endSession(originalDuration time.Duration) {
+
+	fmt.Print("Start another [s]ession, start a session with a [n]ew time, or e[x]it?\n")
 	var choice string
 	fmt.Scanln(&choice)
-	
+
 	switch choice {
 	case "s":
-		startTimer("session", 2)
+		startTimer("session", time.Duration(originalDuration))
+	case "n":
+		fmt.Print("How many minutes should the new session be?\n")
+		fmt.Scanln(&choice)
+		inputDuration, err := strconv.Atoi(choice)
+		if err != nil {
+			log.Fatal("Invalid Duration, exiting the program")
+		}
+		startTimer("session", time.Duration(inputDuration)*time.Minute)
 	case "x":
 		fmt.Println("Exiting the program...")
 		os.Exit(0)

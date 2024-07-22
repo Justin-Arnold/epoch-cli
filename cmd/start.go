@@ -10,7 +10,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"regexp"
 	"strconv"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/gopxl/beep/speaker"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 //go:embed sounds/yeahboi.mp3
@@ -27,62 +27,58 @@ var yeahboi []byte
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a session or break",
-	Run: func(cmd *cobra.Command, args []string) {
-
-		if len(args) != 1 {
-			fmt.Println("Error: missing duration argument")
-			return
-		}
-
-		duration, err := parseDuration(args[0:])
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		startTimer("session", duration)
-	},
+	Run:   startSession,
 }
 
 func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
-func parseDuration(args []string) (time.Duration, error) {
-	if len(args) == 0 {
-		return 0, errors.New("missing duration argument")
+func startSession(command *cobra.Command, commandLineArguments []string) {
+	duration, getDurationError := getDuration(commandLineArguments)
+	if getDurationError != nil {
+		log.Fatal(getDurationError)
 	}
+	fmt.Printf("Starting timer for %v\n", duration)
+	startTimer("session", duration)
+}
 
-	input := args[0]
+func getDuration(args []string) (time.Duration, error) {
+	defaultDuration := viper.GetInt("default_duration")
+	if len(args) == 0 {
+		return time.Duration(defaultDuration) * time.Minute, nil
+	} else {
+		return parseDuration(args)
+	}
+}
 
-	// 1. Check for simple minutes:
-	if minutes, err := strconv.Atoi(input); err == nil {
+func parseDuration(args []string) (time.Duration, error) {
+	durationInput := args[0]
+	if minutes, err := strconv.Atoi(durationInput); err == nil {
 		return time.Duration(minutes) * time.Minute, nil
 	}
-
-	// 2. Check for "until" format:
-	untilRegex := regexp.MustCompile(`^until\s+(?P<hour>\d{1,2})(?P<minute>\d{2})$`)
-	match := untilRegex.FindStringSubmatch(input)
-
-	if match != nil {
-		now := time.Now()
-		hour, _ := strconv.Atoi(match[1])
-		minute, _ := strconv.Atoi(match[2])
-
-		targetTime := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, now.Location())
-		if targetTime.Before(now) {
-			targetTime = targetTime.Add(24 * time.Hour) // Target time is tomorrow
-		}
-
-		return targetTime.Sub(now), nil
-	}
-
-	// If none of the above match...
 	return 0, errors.New("invalid duration format")
 }
 
 func startTimer(mode string, duration time.Duration) {
-	bar := progressbar.NewOptions64( // Adjust total for precision if needed
+	bar := createStatusBar(duration)
+	beginCountdown(duration, bar)
+	playFinishedSound(mode)
+	endSession(duration)
+}
+
+func beginCountdown(duration time.Duration, statusBar *progressbar.ProgressBar) {
+	totalSeconds := int(duration.Seconds())
+	for i := 0; i < totalSeconds; i++ {
+		remaining := duration - time.Duration(i)*time.Second
+		statusBar.Describe(fmt.Sprintf("%s remaining", formatDuration(remaining)))
+		statusBar.Add(1)
+		time.Sleep(time.Second)
+	}
+}
+
+func createStatusBar(duration time.Duration) *progressbar.ProgressBar {
+	return progressbar.NewOptions64( // Adjust total for precision if needed
 		int64(duration.Seconds()),
 		progressbar.OptionSetPredictTime(false),             // Disable automatic ETA
 		progressbar.OptionShowBytes(false),                  // Display remaining time
@@ -91,26 +87,29 @@ func startTimer(mode string, duration time.Duration) {
 		progressbar.OptionClearOnFinish(),
 		progressbar.OptionShowElapsedTimeOnFinish(),
 	)
-
-	// Countdown loop
-	for i := 0; i < int(duration.Seconds()); i++ {
-		bar.Describe(fmt.Sprintf("%d seconds remaining", int(duration.Seconds())-i)) // Updated
-		bar.Add(1)
-		time.Sleep(time.Second)
-	}
-
-	playFinishedSound(mode)
-	endSession(duration)
 }
 
-func playFinishedSound(mode string) {
+// Helper function to format duration
+func formatDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	d -= m * time.Minute
+	s := d / time.Second
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", h, m, s)
+	}
+	return fmt.Sprintf("%02d:%02d", m, s)
+}
+
+func playFinishedSound() {
 	reader := bytes.NewReader(yeahboi)
 	streamer, format, err := mp3.Decode(ioutil.NopCloser(reader))
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer streamer.Close()
-
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	done := make(chan struct{})
 	speaker.Play(beep.Seq(streamer, beep.Callback(func() {

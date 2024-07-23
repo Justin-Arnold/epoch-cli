@@ -40,7 +40,7 @@ func startSession(command *cobra.Command, commandLineArguments []string) {
 		log.Fatal(getDurationError)
 	}
 	fmt.Printf("Starting timer for %v\n", duration)
-	startTimer("session", duration)
+	startTimer(duration)
 }
 
 func getDuration(args []string) (time.Duration, error) {
@@ -60,10 +60,10 @@ func parseDuration(args []string) (time.Duration, error) {
 	return 0, errors.New("invalid duration format")
 }
 
-func startTimer(mode string, duration time.Duration) {
+func startTimer(duration time.Duration) {
 	bar := createStatusBar(duration)
 	beginCountdown(duration, bar)
-	playFinishedSound(mode)
+	playFinishedSound()
 	endSession(duration)
 }
 
@@ -133,7 +133,7 @@ func endSession(originalDuration time.Duration) {
 
 	switch choice {
 	case "s":
-		startTimer("session", time.Duration(originalDuration))
+		startTimer(time.Duration(originalDuration))
 	case "n":
 		fmt.Print("How many minutes should the new session be?\n")
 		fmt.Scanln(&choice)
@@ -141,7 +141,7 @@ func endSession(originalDuration time.Duration) {
 		if err != nil {
 			log.Fatal("Invalid Duration, exiting the program")
 		}
-		startTimer("session", time.Duration(inputDuration)*time.Minute)
+		startTimer(time.Duration(inputDuration) * time.Minute)
 	case "x":
 		fmt.Println("Exiting the program...")
 		os.Exit(0)

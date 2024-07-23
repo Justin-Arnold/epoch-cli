@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/Justin-Arnold/epoch-cli/internal/configuration"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/mp3"
 	"github.com/gopxl/beep/speaker"
@@ -44,7 +45,7 @@ func startSession(command *cobra.Command, commandLineArguments []string) {
 }
 
 func getDuration(args []string) (time.Duration, error) {
-	defaultDuration := viper.GetInt("default_duration")
+	defaultDuration := viper.GetInt(configuration.ConfigOptionSessionDuration)
 	if len(args) == 0 {
 		return time.Duration(defaultDuration) * time.Minute, nil
 	} else {

@@ -7,7 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -104,18 +104,24 @@ func formatDuration(d time.Duration) string {
 }
 
 func playFinishedSound() {
-	reader := bytes.NewReader(yeahboi)
-	streamer, format, err := mp3.Decode(ioutil.NopCloser(reader))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer streamer.Close()
+	streamer, format := getSound()
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	done := make(chan struct{})
 	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
 		close(done)
 	})))
 	<-done
+}
+
+func getSound() (beep.StreamSeekCloser, beep.Format) {
+	reader := bytes.NewReader(yeahboi)
+	streamer, format, err := mp3.Decode(io.NopCloser(reader))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+
+	return streamer, format
 }
 
 type OriginalSessionType string

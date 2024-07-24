@@ -12,12 +12,14 @@ type ConfigOption string
 
 const (
 	// SessionDuration is the key for the default session duration option
-	ConfigOptionSessionDuration string = "default_session_duration"
+	DefaultSessionDuration string = "default_session_duration"
+	DefaultBreakDuration   string = "default_break_duration"
 )
 
 // DefaultValues stores the default values for each option
 var DefaultConfigOptionValues = map[string]interface{}{
-	ConfigOptionSessionDuration: 25,
+	DefaultSessionDuration: 25,
+	DefaultBreakDuration:   5,
 }
 
 func CreateConfig() {
@@ -41,12 +43,10 @@ func LoadConfig() {
 		printConfigUsed()
 		return
 	}
-
 	if isConfigNotFoundError(err) {
 		createNewConfig()
 		return
 	}
-
 	handleConfigReadError(err)
 }
 

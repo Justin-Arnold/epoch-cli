@@ -1,7 +1,5 @@
 package cmd
 
-// ... other imports
-
 import (
 	"bytes"
 	_ "embed"
@@ -28,44 +26,64 @@ var yeahboi []byte
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a session or break",
-	Run:   startSession,
+	Run:   startFocusSessionCommand,
 }
 
 func init() {
 	rootCmd.AddCommand(startCmd)
 }
 
-func startSession(command *cobra.Command, commandLineArguments []string) {
-	duration, getDurationError := getDuration(commandLineArguments)
-	if getDurationError != nil {
-		log.Fatal(getDurationError)
+type SessionMode string
+
+const (
+	FocusSession SessionMode = "focus"
+	BreakSession SessionMode = "break"
+)
+
+func startFocusSessionCommand(command *cobra.Command, commandLineArguments []string) {
+	duration, parseError := parseDurationFromArguments(commandLineArguments)
+	if parseError != nil {
+		log.Fatal(parseError)
+	}
+	startSession(FocusSession, duration)
+}
+
+func parseDurationFromArguments(arguments []string) (time.Duration, error) {
+	if len(arguments) == 0 {
+		return 0, nil
+	}
+	durationInput := arguments[0]
+	minutes, conversionError := strconv.Atoi(durationInput)
+	if conversionError != nil {
+		return 0, errors.New("invalid duration format")
+	}
+	return time.Duration(minutes) * time.Minute, nil
+}
+
+// Passing a session duration of 0 will result in using the default session duration as defined in the config
+func startSession(mode SessionMode, duration time.Duration) {
+	if duration == 0 {
+		duration = getDefaultDuration(mode)
 	}
 	fmt.Printf("Starting timer for %v\n", duration)
-	startTimer(duration)
+	startTimer(mode, duration)
 }
 
-func getDuration(args []string) (time.Duration, error) {
-	defaultDuration := viper.GetInt(configuration.ConfigOptionSessionDuration)
-	if len(args) == 0 {
-		return time.Duration(defaultDuration) * time.Minute, nil
-	} else {
-		return parseDuration(args)
+func getDefaultDuration(mode SessionMode) time.Duration {
+	var defaultDuration int
+	if mode == FocusSession {
+		defaultDuration = viper.GetInt(configuration.DefaultSessionDuration)
+	} else if mode == BreakSession {
+		defaultDuration = viper.GetInt(configuration.DefaultBreakDuration)
 	}
+	return time.Duration(defaultDuration) * time.Minute
 }
 
-func parseDuration(args []string) (time.Duration, error) {
-	durationInput := args[0]
-	if minutes, err := strconv.Atoi(durationInput); err == nil {
-		return time.Duration(minutes) * time.Minute, nil
-	}
-	return 0, errors.New("invalid duration format")
-}
-
-func startTimer(duration time.Duration) {
+func startTimer(mode SessionMode, duration time.Duration) {
 	bar := createStatusBar(duration)
 	beginCountdown(duration, bar)
 	playFinishedSound()
-	endSession(duration)
+	endSession(mode)
 }
 
 func beginCountdown(duration time.Duration, statusBar *progressbar.ProgressBar) {
@@ -125,35 +143,36 @@ func getSound() (beep.StreamSeekCloser, beep.Format) {
 	return streamer, format
 }
 
-type OriginalSessionType string
-
-const (
-	DefaultTypeSession OriginalSessionType = "default"
-	CustomTypeSession  OriginalSessionType = "custom"
-)
-
-func endSession(originalDuration time.Duration) {
-
-	fmt.Print("Start another [s]ession, start a session with a [n]ew time, or e[x]it?\n")
+func endSession(mode SessionMode) {
 	var choice string
-	fmt.Scanln(&choice)
-
-	switch choice {
-	case "s":
-		startTimer(time.Duration(originalDuration))
-	case "n":
-		fmt.Print("How many minutes should the new session be?\n")
+	if mode == FocusSession {
+		fmt.Print("Start a [b]reak, or e[x]it?\n")
 		fmt.Scanln(&choice)
-		inputDuration, err := strconv.Atoi(choice)
-		if err != nil {
-			log.Fatal("Invalid Duration, exiting the program")
+
+		switch choice {
+		case "b":
+			startSession(BreakSession, 0)
+		case "x":
+			fmt.Println("Exiting the program...")
+			os.Exit(0)
+		default:
+			fmt.Println("Invalid choice, Exiting the program...")
+			os.Exit(0)
 		}
-		startTimer(time.Duration(inputDuration) * time.Minute)
-	case "x":
-		fmt.Println("Exiting the program...")
-		os.Exit(0)
-	default:
-		fmt.Println("Invalid choice, Exiting the program...")
-		os.Exit(0)
+	} else if mode == BreakSession {
+		fmt.Print("Start a [s]ession, or e[x]it?\n")
+		fmt.Scanln(&choice)
+
+		switch choice {
+		case "s":
+			startSession(FocusSession, 0)
+		case "x":
+			fmt.Println("Exiting the program...")
+			os.Exit(0)
+		default:
+			fmt.Println("Invalid choice, Exiting the program...")
+			os.Exit(0)
+		}
 	}
+
 }

@@ -9,21 +9,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// "bytes"
-// _ "embed"
-// "errors"
-
-// "io"
-// "strconv"
-// "time"
-
-// "github.com/gopxl/beep"
-// "github.com/gopxl/beep/mp3"
-// "github.com/gopxl/beep/speaker"
-// "github.com/schollz/progressbar/v3"
-// "github.com/spf13/cobra"
-// "github.com/spf13/viper"
-
 var configCommand = &cobra.Command{
 	Use:   "config",
 	Short: "Used to make changes to the config from the command line",
@@ -46,7 +31,9 @@ func changeConfigSetting(command *cobra.Command, commandLineArguments []string) 
 
 	switch setting {
 	case "session":
-		key = configuration.ConfigOptionSessionDuration
+		key = configuration.DefaultSessionDuration
+	case "break":
+		key = configuration.DefaultBreakDuration
 	default:
 		fmt.Printf("unknown setting: %s", setting)
 		os.Exit(1)

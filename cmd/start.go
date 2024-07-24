@@ -75,9 +75,9 @@ func startSession(mode SessionMode, duration time.Duration) {
 func getDefaultDuration(mode SessionMode) time.Duration {
 	var defaultDuration int
 	if mode == FocusSession {
-		defaultDuration = viper.GetInt(configuration.DefaultSessionDuration)
+		defaultDuration = viper.GetInt(string(configuration.DefaultFocusDuration))
 	} else if mode == BreakSession {
-		defaultDuration = viper.GetInt(configuration.DefaultBreakDuration)
+		defaultDuration = viper.GetInt(string(configuration.DefaultBreakDuration))
 	}
 	return time.Duration(defaultDuration) * time.Minute
 }

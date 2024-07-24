@@ -31,9 +31,9 @@ func changeConfigSetting(command *cobra.Command, commandLineArguments []string) 
 
 	switch setting {
 	case "session":
-		key = configuration.DefaultSessionDuration
+		key = string(configuration.DefaultFocusDuration)
 	case "break":
-		key = configuration.DefaultBreakDuration
+		key = string(configuration.DefaultBreakDuration)
 	default:
 		fmt.Printf("unknown setting: %s", setting)
 		os.Exit(1)

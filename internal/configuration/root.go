@@ -8,36 +8,47 @@ import (
 	"github.com/spf13/viper"
 )
 
-type ConfigOption string
+type ConfigOptionKey string
+type ConfigPartial = map[ConfigOptionKey]any
 
-const (
-	// SessionDuration is the key for the default session duration option
-	DefaultSessionDuration string = "default_session_duration"
-	DefaultBreakDuration   string = "default_break_duration"
-)
+var allConfigOptions []ConfigPartial
 
-// DefaultValues stores the default values for each option
-var DefaultConfigOptionValues = map[string]interface{}{
-	DefaultSessionDuration: 25,
-	DefaultBreakDuration:   5,
+func RegisterConfigOptions(configOptions ConfigPartial) {
+	allConfigOptions = append(allConfigOptions, configOptions)
 }
 
-func CreateConfig() {
+func init() {
+	createConfig()
+	setAllDefaultOptions()
+	loadConfig()
+	err := viper.WriteConfig()
+	if err != nil {
+		fmt.Println("Error writing config file:", err)
+		os.Exit(1)
+	}
+}
+
+func setAllDefaultOptions() {
+	for _, configOptions := range allConfigOptions {
+		setDefaultOptions((configOptions))
+	}
+}
+
+func setDefaultOptions(options ConfigPartial) {
+	for key, value := range options {
+		viper.SetDefault(string(key), value)
+	}
+}
+
+func createConfig() {
 	home, err := os.UserHomeDir()
 	cobra.CheckErr(err)
-
 	viper.AddConfigPath(home)
 	viper.SetConfigType("toml")
 	viper.SetConfigName(".epoch-cli")
 }
 
-func SetDefaultOptions() {
-	for key, value := range DefaultConfigOptionValues {
-		viper.SetDefault(key, value)
-	}
-}
-
-func LoadConfig() {
+func loadConfig() {
 	err := viper.ReadInConfig()
 	if err == nil {
 		printConfigUsed()

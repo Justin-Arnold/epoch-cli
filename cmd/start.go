@@ -23,6 +23,9 @@ import (
 //go:embed sounds/yeahboi.mp3
 var yeahboi []byte
 
+//go:embed sounds/yousuffer.mp3
+var yousuffer []byte
+
 var startCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start a session or break",
@@ -82,7 +85,7 @@ func getDefaultDuration(mode SessionMode) time.Duration {
 func startTimer(mode SessionMode, duration time.Duration) {
 	bar := createStatusBar(duration)
 	beginCountdown(duration, bar)
-	playFinishedSound()
+	playFinishedSound(mode)
 	endSession(mode)
 }
 
@@ -122,8 +125,8 @@ func formatDuration(d time.Duration) string {
 	return fmt.Sprintf("%02d:%02d", m, s)
 }
 
-func playFinishedSound() {
-	streamer, format := getSound()
+func playFinishedSound(mode SessionMode) {
+	streamer, format := getSound(mode)
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	done := make(chan struct{})
 	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
@@ -132,8 +135,14 @@ func playFinishedSound() {
 	<-done
 }
 
-func getSound() (beep.StreamSeekCloser, beep.Format) {
-	reader := bytes.NewReader(yeahboi)
+func getSound(mode SessionMode) (beep.StreamSeekCloser, beep.Format) {
+	var soundToGet []byte
+	if mode == FocusSession {
+		soundToGet = yeahboi
+	} else if mode == BreakSession {
+		soundToGet = yousuffer
+	}
+	reader := bytes.NewReader(soundToGet)
 	streamer, format, err := mp3.Decode(io.NopCloser(reader))
 	if err != nil {
 		log.Fatal(err)

@@ -20,7 +20,6 @@ var configCommand = &cobra.Command{
 func changeConfigSetting(command *cobra.Command, commandLineArguments []string) {
 	if len(commandLineArguments) != 2 {
 		fmt.Printf("expected 2 arguments, got %d", len(commandLineArguments))
-
 	}
 
 	setting := commandLineArguments[0]

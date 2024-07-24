@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -19,9 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-//go:embed sounds/yeahboi.mp3
-var yeahboi []byte
 
 //go:embed sounds/yousuffer.mp3
 var yousuffer []byte
@@ -133,22 +131,52 @@ func playFinishedSound(mode SessionMode) {
 		close(done)
 	})))
 	<-done
+	streamer.Close()
 }
 
 func getSound(mode SessionMode) (beep.StreamSeekCloser, beep.Format) {
-	var soundToGet []byte
+	var customSoundFilePath string
+	var soundType string
+	embeddedSound := yousuffer
+
 	if mode == FocusSession {
-		soundToGet = yeahboi
+		customSoundFilePath = viper.GetString(string(configuration.CustomFocusSound))
+		soundType = viper.GetString(string(configuration.FocusSoundType))
 	} else if mode == BreakSession {
-		soundToGet = yousuffer
+		customSoundFilePath = viper.GetString(string(configuration.CustomBreakSound))
+		soundType = viper.GetString(string(configuration.BreakSoundType))
 	}
-	reader := bytes.NewReader(soundToGet)
-	streamer, format, err := mp3.Decode(io.NopCloser(reader))
+
+	if soundType == "custom" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatal(err)
+		}
+		customSoundFilePath = filepath.Join(home, customSoundFilePath[1:])
+		// Check if the file exists
+		if _, err := os.Stat(customSoundFilePath); os.IsNotExist(err) {
+			log.Printf("Custom sound file %s not found, using default", customSoundFilePath)
+		}
+	}
+
+	var streamer beep.StreamSeekCloser
+	var format beep.Format
+	var err error
+
+	if soundType == "default" {
+		reader := bytes.NewReader(embeddedSound)
+		streamer, format, err = mp3.Decode(io.NopCloser(reader))
+	} else if soundType == "custom" {
+		f, err := os.Open(customSoundFilePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		streamer, format, err = mp3.Decode(f)
+	}
+
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer streamer.Close()
-
 	return streamer, format
 }
 
